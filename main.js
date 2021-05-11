@@ -252,7 +252,7 @@ function getHeroExpPotionFromExpidition(duration, difficulty) {
     return rewards;
 }
 handlers.testTS = function (args, context) {
-    log.debug("this is a test");
+    log.debug("this is a second test");
 };
 function getRuneFromExpidition(duration, difficulty) {
     var runeBaseDropRate = {
