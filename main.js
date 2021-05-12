@@ -9,82 +9,6 @@ var __assign = (this && this.__assign) || function () {
     };
     return __assign.apply(this, arguments);
 };
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-// Welcome to your first Cloud Script revision!
-//
-// Cloud Script runs in the PlayFab cloud and has full access to the PlayFab Game Server API 
-// (https://api.playfab.com/Documentation/Server), and it runs in the context of a securely
-// authenticated player, so you can use it to implement logic for your game that is safe from
-// client-side exploits. 
-//
-// Cloud Script functions can also make web requests to external HTTP
-// endpoints, such as a database or private API for your title, which makes them a flexible
-// way to integrate with your existing backend systems.
-//
-// There are several different options for calling Cloud Script functions:
-//
-// 1) Your game client calls them directly using the "ExecuteCloudScript" API,
-// passing in the function name and arguments in the request and receiving the 
-// function return result in the response.
-// (https://api.playfab.com/Documentation/Client/method/ExecuteCloudScript)
-// 
-// 2) You create PlayStream event actions that call them when a particular 
-// event occurs, passing in the event and associated player profile data.
-// (https://api.playfab.com/playstream/docs)
-// 
-// 3) For titles using the Photon Add-on (https://playfab.com/marketplace/photon/),
-// Photon room events trigger webhooks which call corresponding Cloud Script functions.
-// 
-// The following examples demonstrate all three options.
-//
-// This is a simple example of making a PlayFab server API call
-handlers.UpdatePLayerStats = function (args, context) {
-    var request = {
-        PlayFabId: currentPlayerId, Statistics: [{
-                StatisticName: "PlayerLevel",
-                Value: args.playerLevelVal
-            }, {
-                StatisticName: "GameLevel",
-                Value: args.gameLevelVal
-            }]
-    };
-    // The pre-defined "server" object has functions corresponding to each PlayFab server API 
-    // (https://api.playfab.com/Documentation/Server). It is automatically 
-    // authenticated as your title and handles all communication with 
-    // the PlayFab API, so you don't have to write extra code to issue HTTP requests. 
-    var playerStatResult = server.UpdatePlayerStatistics(request);
-    return { messageValue: "updated cloud stats" };
-};
-// Below are some examples of using Cloud Script in slightly more realistic scenarios
-// This is a function that the game client would call whenever a player completes
-// a level. It updates a setting in the player's data that only game server
-// code can write - it is read-only on the client - and it updates a player
-// statistic that can be used for leaderboards. 
-//
-// A funtion like this could be extended to perform validation on the 
-// level completion data to detect cheating. It could also do things like 
-// award the player items from the game catalog based on their performance.
-handlers.completedLevel = function (args, context) {
-    var level = args.levelName;
-    var monstersKilled = args.monstersKilled;
-    var updateUserDataResult = server.UpdateUserInternalData({
-        PlayFabId: currentPlayerId,
-        Data: {
-            lastLevelCompleted: level
-        }
-    });
-    log.debug("Set lastLevelCompleted for player " + currentPlayerId + " to " + level);
-    var request = {
-        PlayFabId: currentPlayerId, Statistics: [{
-                StatisticName: "level_monster_kills",
-                Value: monstersKilled
-            }]
-    };
-    server.UpdatePlayerStatistics(request);
-    log.debug("Updated level_monster_kills stat for player " + currentPlayerId + " to " + monstersKilled);
-    return { messageValue: "Updated level_monster_kills stat for player " + currentPlayerId + " to " + monstersKilled };
-};
 handlers.setExpiditionOne = function (args, context) {
     // set initial expidition
     var realExpidition = args.expidition;
@@ -133,7 +57,16 @@ handlers.finishExpidition = function (args, context) {
          });*/
     // generate rewards and gold if expidition finish time is smaller than current time
     if (expiditionInfo.expiditionFinishTime < getCurrentTimeInSeconds() || args.manualFinish) {
-        rewards = finishHeroExpExpidition(expiditionInfo);
+        switch (expiditionInfo.expiditionType) {
+            case 0: {
+                rewards = finishRuneExpidition(expiditionInfo);
+                break;
+            }
+            case 1: {
+                rewards = finishHeroExpExpidition(expiditionInfo);
+                break;
+            }
+        }
         return rewards;
     }
     return { messageValue: "expidition canceled" };
@@ -162,45 +95,24 @@ function finishHeroExpExpidition(expiditionInfo) {
     log.debug(rewards);
     return { gold: expiditionGold, itemRewards: rewards };
 }
-// reduntand because hero are in player inventory and not character data
-handlers.getHeroCharacter = function (args, context) {
-    var hero = server.GrantCharacterToUser({
-        PlayFabId: currentPlayerId,
-        CharacterName: "Catharina",
-        CharacterType: "Catharina",
+function finishRuneExpidition(expiditionInfo) {
+    var rewards;
+    var runeDust;
+    rewards = getRuneFromExpidition(expiditionInfo.expiditionDuration, expiditionInfo.expiditionDifficulty);
+    // give player runes
+    // give rune dust to player
+    runeDust = server.GetTitleInternalData({
+        Keys: ["ExpiditionRuneDust"]
     });
-    // set up initial values
-    server.UpdateCharacterReadOnlyData({
+    var expditionRuneDust = JSON.parse(runeDust.Data.ExpiditionRuneDust)[expiditionInfo.expiditionDifficulty];
+    server.AddUserVirtualCurrency({
         PlayFabId: currentPlayerId,
-        CharacterId: hero.CharacterId,
-        Data: {
-            heroLevel: "1",
-            heroCurrentExp: "0",
-        }
+        Amount: expditionRuneDust,
+        VirtualCurrency: "RD",
     });
-    server.UpdateCharacterData({
-        PlayFabId: currentPlayerId,
-        CharacterId: hero.CharacterId,
-        Data: {
-            runes: "",
-        }
-    });
-    return hero;
-};
-function getHeroFromPlayerInventory(heroName) {
-    var inventory = server.GetUserInventory({
-        PlayFabId: currentPlayerId,
-    });
-    // need to adapt that it only give hero custom data
-    var hero = inventory.Inventory.find(function (x) { return x.ItemId == heroName; });
-    return { hero: hero, inventory: inventory };
+    log.debug(expditionRuneDust);
+    log.debug(rewards);
 }
-handlers.getHeroExpRequirement = function (args, context) {
-    var info = server.GetTitleInternalData({
-        Keys: ["HeroExpRequirement"],
-    });
-    return { data: info.Data.HeroExpRequirement };
-};
 var expiditionTimeModifier = {
     "2": 1,
     "6": 2.5,
@@ -239,7 +151,6 @@ function getHeroExpPotionFromExpidition(duration, difficulty) {
             break;
     }
     var amount = Math.round(amountTime * amountDifficulty);
-    log.debug(amount.toString());
     var str1 = "HeroExp";
     var str2 = difficulty;
     var tableString = str1.concat(str2);
@@ -251,15 +162,68 @@ function getHeroExpPotionFromExpidition(duration, difficulty) {
     var rewards = getRewardsFromNodes(nodes, amount);
     return rewards;
 }
-handlers.testTS = function (args, context) {
-    log.debug("this is a second test");
-};
 function getRuneFromExpidition(duration, difficulty) {
-    var runeBaseDropRate = {
-        "alpha": 0.2,
-        "beta": 0.4,
-        "gamma": 0.6,
-    };
+    var amountTime = expiditionTimeModifier[duration];
+    var amount = Math.round(amountTime * 1.5);
+    var expiditionReward2 = server.GetRandomResultTables({
+        TableIDs: ["RuneExpidition"],
+        CatalogVersion: "Runes"
+    });
+    var nodes = expiditionReward2.Tables["RuneExpidition"].Nodes;
+    var rewards = getRewardsFromNodes(nodes, amount);
+    log.debug(rewards.length.toString());
+    log.debug(rewards.toString());
+    return rewards;
+}
+// draws rewards from an array based on the amount
+function getRewardsFromNodes(nodes, amount) {
+    var lenghts = new Array(nodes.length);
+    var totalAmount = 0;
+    for (var i = 0; i < nodes.length; i++) {
+        totalAmount = totalAmount + nodes[i].Weight;
+    }
+    var odds = new Array(nodes.length);
+    for (var i = 0; i < nodes.length; i++) {
+        odds[i] = nodes[i].Weight / totalAmount;
+    }
+    var value = weightedRandom(odds);
+    var rewards = new Array(amount);
+    for (var i = 0; i < amount; i++) {
+        //rewards[i] = weightedRandom(odds);
+        rewards[i] = nodes[weightedRandom(odds)[0]].ResultItem;
+    }
+    return rewards;
+}
+function weightedRandom(prob) {
+    var sum = 0;
+    var r = Math.random();
+    for (var i in prob) {
+        sum += prob[i];
+        if (r <= sum)
+            return i;
+    }
+}
+function getCurrentTimeInSeconds() {
+    var seconds = 1000;
+    var minutes = seconds * 60;
+    var hours = minutes * 60;
+    var days = hours * 24;
+    var years = days * 365;
+    var d = new Date();
+    var t = d.getTime();
+    var y = Math.round(t / seconds);
+    return y;
+}
+function getFutureTimeInSeconds(futureSeconds) {
+    var seconds = 1000;
+    var minutes = seconds * 60;
+    var hours = minutes * 60;
+    var days = hours * 24;
+    var years = days * 365;
+    var d = new Date();
+    var t = d.getTime();
+    var y = Math.round(t / (seconds) + futureSeconds);
+    return y;
 }
 handlers.giveHeroExpPotion = function (args, context) {
     var result = getHeroFromPlayerInventory(args.hero);
@@ -442,34 +406,6 @@ function giveHeroExpPotion(hero, potions) {
     } while (remainingPotionExp > 0 && whileStopper < 1000);
     return updatedHero;
 }
-// draws rewards from an array based on the amount
-function getRewardsFromNodes(nodes, amount) {
-    var lenghts = new Array(nodes.length);
-    var totalAmount = 0;
-    for (var i = 0; i < nodes.length; i++) {
-        totalAmount = totalAmount + nodes[i].Weight;
-    }
-    var odds = new Array(nodes.length);
-    for (var i = 0; i < nodes.length; i++) {
-        odds[i] = nodes[i].Weight / totalAmount;
-    }
-    var value = weightedRandom(odds);
-    var rewards = new Array(amount);
-    for (var i = 0; i < amount; i++) {
-        //rewards[i] = weightedRandom(odds);
-        rewards[i] = nodes[weightedRandom(odds)[0]].ResultItem;
-    }
-    return rewards;
-}
-function weightedRandom(prob) {
-    var sum = 0;
-    var r = Math.random();
-    for (var i in prob) {
-        sum += prob[i];
-        if (r <= sum)
-            return i;
-    }
-}
 // takes input parameter heroID,
 handlers.ascendHero = function (args, context) {
     var result = getHeroFromPlayerInventory(args.hero);
@@ -586,6 +522,20 @@ function itemHasEnoughRemainingUsesLeft(inventory, itemID, amount) {
     }
     return false;
 }
+function getHeroFromPlayerInventory(heroName) {
+    var inventory = server.GetUserInventory({
+        PlayFabId: currentPlayerId,
+    });
+    // need to adapt that it only give hero custom data
+    var hero = inventory.Inventory.find(function (x) { return x.ItemId == heroName; });
+    return { hero: hero, inventory: inventory };
+}
+handlers.getHeroExpRequirement = function (args, context) {
+    var info = server.GetTitleInternalData({
+        Keys: ["HeroExpRequirement"],
+    });
+    return { data: info.Data.HeroExpRequirement };
+};
 var mainStatsData;
 handlers.grantRuneToPlayer = function (args, context) {
     var runeArray = new Array();
@@ -1121,61 +1071,135 @@ function getRandomInt(min, max) {
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-function getCurrentTimeInSeconds() {
-    var seconds = 1000;
-    var minutes = seconds * 60;
-    var hours = minutes * 60;
-    var days = hours * 24;
-    var years = days * 365;
-    var d = new Date();
-    var t = d.getTime();
-    var y = Math.round(t / seconds);
-    return y;
-}
-function getFutureTimeInSeconds(futureSeconds) {
-    var seconds = 1000;
-    var minutes = seconds * 60;
-    var hours = minutes * 60;
-    var days = hours * 24;
-    var years = days * 365;
-    var d = new Date();
-    var t = d.getTime();
-    var y = Math.round(t / (seconds) + futureSeconds);
-    return y;
-}
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+// Welcome to your first Cloud Script revision!
+//
+// Cloud Script runs in the PlayFab cloud and has full access to the PlayFab Game Server API 
+// (https://api.playfab.com/Documentation/Server), and it runs in the context of a securely
+// authenticated player, so you can use it to implement logic for your game that is safe from
+// client-side exploits. 
+//
+// Cloud Script functions can also make web requests to external HTTP
+// endpoints, such as a database or private API for your title, which makes them a flexible
+// way to integrate with your existing backend systems.
+//
+// There are several different options for calling Cloud Script functions:
+//
+// 1) Your game client calls them directly using the "ExecuteCloudScript" API,
+// passing in the function name and arguments in the request and receiving the 
+// function return result in the response.
+// (https://api.playfab.com/Documentation/Client/method/ExecuteCloudScript)
+// 
+// 2) You create PlayStream event actions that call them when a particular 
+// event occurs, passing in the event and associated player profile data.
+// (https://api.playfab.com/playstream/docs)
+// 
+// 3) For titles using the Photon Add-on (https://playfab.com/marketplace/photon/),
+// Photon room events trigger webhooks which call corresponding Cloud Script functions.
+// 
+// The following examples demonstrate all three options.
+//
+// This is a simple example of making a PlayFab server API call
+handlers.UpdatePLayerStats = function (args, context) {
+    var request = {
+        PlayFabId: currentPlayerId, Statistics: [{
+                StatisticName: "PlayerLevel",
+                Value: args.playerLevelVal
+            }, {
+                StatisticName: "GameLevel",
+                Value: args.gameLevelVal
+            }]
+    };
+    // The pre-defined "server" object has functions corresponding to each PlayFab server API 
+    // (https://api.playfab.com/Documentation/Server). It is automatically 
+    // authenticated as your title and handles all communication with 
+    // the PlayFab API, so you don't have to write extra code to issue HTTP requests. 
+    var playerStatResult = server.UpdatePlayerStatistics(request);
+    return { messageValue: "updated cloud stats" };
+};
+// Below are some examples of using Cloud Script in slightly more realistic scenarios
+// This is a function that the game client would call whenever a player completes
+// a level. It updates a setting in the player's data that only game server
+// code can write - it is read-only on the client - and it updates a player
+// statistic that can be used for leaderboards. 
+//
+// A funtion like this could be extended to perform validation on the 
+// level completion data to detect cheating. It could also do things like 
+// award the player items from the game catalog based on their performance.
+handlers.completedLevel = function (args, context) {
+    var level = args.levelName;
+    var monstersKilled = args.monstersKilled;
+    var updateUserDataResult = server.UpdateUserInternalData({
+        PlayFabId: currentPlayerId,
+        Data: {
+            lastLevelCompleted: level
+        }
+    });
+    log.debug("Set lastLevelCompleted for player " + currentPlayerId + " to " + level);
+    var request = {
+        PlayFabId: currentPlayerId, Statistics: [{
+                StatisticName: "level_monster_kills",
+                Value: monstersKilled
+            }]
+    };
+    server.UpdatePlayerStatistics(request);
+    log.debug("Updated level_monster_kills stat for player " + currentPlayerId + " to " + monstersKilled);
+    return { messageValue: "Updated level_monster_kills stat for player " + currentPlayerId + " to " + monstersKilled };
+};
+// reduntand because hero are in player inventory and not character data
+handlers.getHeroCharacter = function (args, context) {
+    var hero = server.GrantCharacterToUser({
+        PlayFabId: currentPlayerId,
+        CharacterName: "Catharina",
+        CharacterType: "Catharina",
+    });
+    // set up initial values
+    server.UpdateCharacterReadOnlyData({
+        PlayFabId: currentPlayerId,
+        CharacterId: hero.CharacterId,
+        Data: {
+            heroLevel: "1",
+            heroCurrentExp: "0",
+        }
+    });
+    server.UpdateCharacterData({
+        PlayFabId: currentPlayerId,
+        CharacterId: hero.CharacterId,
+        Data: {
+            runes: "",
+        }
+    });
+    return hero;
+};
 function uuidv4() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
 }
-define("hi", [], {
-    "me": 1
-});
-define("import-me", ["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.foo = exports.externalVar = void 0;
-    var test = {
-        field: 1,
-        nested: {
-            more: 'aaa'
-        }
-    };
-    exports.externalVar = 'ext';
-    function foo() {
-        console.log(exports.externalVar);
-    }
-    exports.foo = foo;
-});
-define("test", ["require", "exports", "import-me"], function (require, exports, import_me_1) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var hi = 'hello';
-    import_me_1.foo();
-    console.log(hi);
-    console.log(import_me_1.externalVar);
-});
+// import * as myJson from './hi.json';
+// interface MyObj {
+//     field: number
+//     nested: {
+//         more: string
+//     }
+// }
+// const test: MyObj = {
+//     field: 1,
+//     nested: {
+//         more: 'aaa'
+//     }
+// }
+// export const externalVar = 'ext'
+// export function foo() {
+//     console.log(externalVar)
+// }
+// import { externalVar, foo } from "./import-me"
+// const hi = 'hello'
+// foo()
+// console.log(hi)
+// console.log (externalVar)
 function GetEntityToken(params, context) {
     var getTokenRequest = {};
     var getTokenResponse = entity.GetEntityToken(getTokenRequest);
