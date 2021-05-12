@@ -165,13 +165,21 @@ function getHeroExpPotionFromExpidition(duration, difficulty) {
 function getRuneFromExpidition(duration, difficulty) {
     var amountTime = expiditionTimeModifier[duration];
     var amount = Math.round(amountTime * 1.5);
-    var expiditionReward2 = server.GetRandomResultTables({
+    var expiditionReward = server.GetRandomResultTables({
         TableIDs: ["RuneExpidition"],
         CatalogVersion: "Runes"
     });
-    var nodes = expiditionReward2.Tables["RuneExpidition"].Nodes;
-    var rewards = getRewardsFromNodes(nodes, amount);
-    log.debug(rewards.length.toString());
+    // TODO : generate runegrade based on difficulty
+    // TODO : generate runeset maybe based on expiditionType
+    var runeGrade = "Silver";
+    var runeSetBonus = "ATKSet";
+    // let nodes =  expiditionReward.Tables["RuneExpidition"].Nodes;
+    // let rewards = getRewardsFromNodes(nodes,amount);
+    var rewards = new Array();
+    for (var i = 0; i < amount; i++) {
+        var rune = generateRune(runeGrade, runeSetBonus);
+        rewards.push(rune);
+    }
     log.debug(rewards.toString());
     return rewards;
 }
