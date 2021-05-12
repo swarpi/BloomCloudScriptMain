@@ -112,6 +112,7 @@ function finishRuneExpidition(expiditionInfo) {
     });
     log.debug(expditionRuneDust);
     log.debug(rewards);
+    return rewards;
 }
 var expiditionTimeModifier = {
     "2": 1,
@@ -165,24 +166,11 @@ function getHeroExpPotionFromExpidition(duration, difficulty) {
 function getRuneFromExpidition(duration, difficulty) {
     var amountTime = expiditionTimeModifier[duration];
     var amount = Math.round(amountTime * 1.5);
-    var expiditionReward = server.GetRandomResultTables({
-        TableIDs: ["RuneExpidition"],
-        CatalogVersion: "Runes"
-    });
     // TODO : generate runegrade based on difficulty
     // TODO : generate runeset maybe based on expiditionType
     var runeGrade = "Silver";
     var runeSetBonus = "ATKSet";
-    // let nodes =  expiditionReward.Tables["RuneExpidition"].Nodes;
-    // let rewards = getRewardsFromNodes(nodes,amount);
-    // very unflexible to access the rune info
-    mainStatsData = getRuneStatsData();
-    var rewards = new Array();
-    for (var i = 0; i < amount; i++) {
-        var rune = generateRune(runeGrade, runeSetBonus);
-        rewards.push(rune);
-    }
-    log.debug(rewards.toString());
+    var rewards = grantRuneToPlayerInventory(runeGrade, runeSetBonus, amount);
     return rewards;
 }
 // draws rewards from an array based on the amount
@@ -548,8 +536,8 @@ handlers.getHeroExpRequirement = function (args, context) {
 };
 var mainStatsData;
 handlers.grantRuneToPlayer = function (args, context) {
-    var runeArray = new Array();
-    var runes = new Array();
+    var runeArray = new Array(); // all infos about the runes
+    var runes = new Array(); // info about the runeslot
     // generate array with the rune slots
     mainStatsData = getRuneStatsData();
     for (var i = 0; i < args.amount; i++) {
@@ -601,6 +589,60 @@ handlers.grantRuneToPlayer = function (args, context) {
     });
     return { items: counter };
 };
+function grantRuneToPlayerInventory(runeGrade, runeSetBonus, amount) {
+    var runeArray = new Array(); // all infos about the runes
+    var runes = new Array(); // info about the runeslot
+    // generate array with the rune slots
+    mainStatsData = getRuneStatsData();
+    for (var i = 0; i < amount; i++) {
+        var rune = generateRune(runeGrade, runeSetBonus);
+        switch (rune.runeSlot) {
+            case 0:
+                runes.push("AlphaRune");
+                break;
+            case 1:
+                runes.push("BetaRune");
+                break;
+            case 2:
+                runes.push("GammaRune");
+                break;
+        }
+        runeArray.push(rune);
+    }
+    // give the player the runes based on the rune slots
+    var grantedItems = server.GrantItemsToUser({
+        PlayFabId: currentPlayerId,
+        ItemIds: runes,
+        CatalogVersion: "Runes",
+    });
+    var counter = 0;
+    // need to sort both arrays, in order to give the right runes the right data
+    runeArray.sort(function (a, b) {
+        if (a.runeSlot < b.runeSlot) {
+            return -1;
+        }
+        if (a.runeSlot > b.runeSlot) {
+            return 1;
+        }
+        return 0;
+    });
+    grantedItems.ItemGrantResults.sort(function (a, b) {
+        if (a.ItemId < b.ItemId) {
+            return -1;
+        }
+        if (a.ItemId > b.ItemId) {
+            return 1;
+        }
+        return 0;
+    });
+    // update the rune custom data with the rune information
+    grantedItems.ItemGrantResults.forEach(function (item) {
+        var tempRune = runeArray[counter];
+        updateRune(item.ItemInstanceId, tempRune.mainStat, tempRune.subStats, tempRune.runeGrade, tempRune.runeSet, 0, 0);
+        counter++;
+    });
+    return { items: counter, runes: runeArray };
+}
 function updateRune(ItemInstanceId, mainStat, subStats, grade, setBonus, level, stars) {
     server.UpdateUserInventoryItemCustomData({
         PlayFabId: currentPlayerId,
