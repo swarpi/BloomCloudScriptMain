@@ -175,6 +175,8 @@ function getRuneFromExpidition(duration, difficulty) {
     var runeSetBonus = "ATKSet";
     // let nodes =  expiditionReward.Tables["RuneExpidition"].Nodes;
     // let rewards = getRewardsFromNodes(nodes,amount);
+    // very unflexible to access the rune info
+    mainStatsData = getRuneStatsData();
     var rewards = new Array();
     for (var i = 0; i < amount; i++) {
         var rune = generateRune(runeGrade, runeSetBonus);
