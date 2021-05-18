@@ -50,11 +50,10 @@ handlers.finishExpidition = function (args, context) {
     var rewards;
     var gold;
     // clear epxidition after player decided to finish it
-    /*    let updataPlayerlevelResult = server.UpdateUserInternalData
-        ({
-             PlayFabId: currentPlayerId,
-             Data: { "expiditionOne": "" }
-         });*/
+    var updataPlayerlevelResult = server.UpdateUserInternalData({
+        PlayFabId: currentPlayerId,
+        Data: { "expiditionOne": "" }
+    });
     // generate rewards and gold if expidition finish time is smaller than current time
     if (expiditionInfo.expiditionFinishTime < getCurrentTimeInSeconds() || args.manualFinish) {
         switch (expiditionInfo.expiditionType) {
