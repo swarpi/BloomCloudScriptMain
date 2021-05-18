@@ -1116,7 +1116,7 @@ handlers.giveRunesToHero = function (args, context) {
         PlayFabId: currentPlayerId,
         ItemInstanceId: hero.ItemInstanceId,
         Data: {
-            runes: args.runes,
+            runes: args.runes.join(),
         }
     });
 };
