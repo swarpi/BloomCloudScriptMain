@@ -1119,6 +1119,7 @@ handlers.giveRunesToHero = function (args, context) {
             runes: args.runes.join(),
         }
     });
+    return { messageValue: "sucessfully given hero rune" };
 };
 /**
  * Returns a random integer between min (inclusive) and max (inclusive).
