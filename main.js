@@ -1110,6 +1110,16 @@ function getRuneSlotFromItemClass(itemClass) {
     }
     return runeSlot;
 }
+handlers.giveRunesToHero = function (args, context) {
+    var hero = getHeroFromPlayerInventory(args.hero).hero;
+    server.UpdateUserInventoryItemCustomData({
+        PlayFabId: currentPlayerId,
+        ItemInstanceId: hero.ItemInstanceId,
+        Data: {
+            runes: args.runes,
+        }
+    });
+};
 /**
  * Returns a random integer between min (inclusive) and max (inclusive).
  * The value is no lower than min (or the next integer greater than min
