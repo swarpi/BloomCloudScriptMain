@@ -230,7 +230,13 @@ function getNewHeroExpPotion(difficulty, time) {
         Keys: ["ExpiditionPotions"]
     });
     var heroExpPotionsArray = JSON.parse(heroExpPotions.Data.ExpiditionPotions);
+    var rewards = heroExpPotionsArray[difficulty][time];
     log.debug(heroExpPotionsArray[difficulty][time]);
+    server.GrantItemsToUser({
+        PlayFabId: currentPlayerId,
+        ItemIds: rewards,
+        CatalogVersion: "Items",
+    });
 }
 handlers.giveHeroExpPotion = function (args, context) {
     var result = getHeroFromPlayerInventory(args.hero);
