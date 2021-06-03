@@ -223,14 +223,14 @@ function getFutureTimeInSeconds(futureSeconds) {
     return y;
 }
 handlers.heroExpRewards = function (args, context) {
-    getNewHeroExpPotion(args.diff, 2);
+    getNewHeroExpPotion(args.diff, args.time);
 };
 function getNewHeroExpPotion(difficulty, time) {
     var heroExpPotions = server.GetTitleInternalData({
         Keys: ["ExpiditionPotions"]
     });
     var heroExpPotionsArray = JSON.parse(heroExpPotions.Data.ExpiditionPotions);
-    log.debug(heroExpPotionsArray[difficulty]);
+    log.debug(heroExpPotionsArray[difficulty][time]);
 }
 handlers.giveHeroExpPotion = function (args, context) {
     var result = getHeroFromPlayerInventory(args.hero);
