@@ -71,13 +71,16 @@ handlers.finishExpidition = function (args, context) {
     return { messageValue: "expidition canceled" };
 };
 function finishHeroExpExpidition(expiditionInfo) {
-    var rewards;
-    var gold;
-    rewards = getHeroExpPotionFromExpidition(expiditionInfo.expiditionDuration, expiditionInfo.expiditionDifficulty);
+    log.debug(expiditionInfo.expiditionDifficulty);
+    log.debug(expiditionInfo.expiditionDuration);
+    var rewards = getNewHeroExpPotion(expiditionInfo.expiditionDifficulty, expiditionInfo.expiditionDuration);
+    var potions = rewards.potions;
+    var gold = rewards.gold;
+    log.debug(rewards);
     // give player exp potions
     server.GrantItemsToUser({
         PlayFabId: currentPlayerId,
-        ItemIds: rewards,
+        ItemIds: potions,
         CatalogVersion: "Items",
     });
     // give player gold
@@ -230,15 +233,8 @@ function getNewHeroExpPotion(difficulty, time) {
         Keys: ["ExpiditionPotions"]
     });
     var heroExpPotionsArray = JSON.parse(heroExpPotions.Data.ExpiditionPotions);
-    var rewards = heroExpPotionsArray[difficulty][time].potions;
-    var gold = heroExpPotionsArray[difficulty][time].gold;
-    log.debug(heroExpPotionsArray[difficulty][time].potions);
-    log.debug(gold);
-    server.GrantItemsToUser({
-        PlayFabId: currentPlayerId,
-        ItemIds: rewards,
-        CatalogVersion: "Items",
-    });
+    var rewards = heroExpPotionsArray[difficulty][time];
+    return rewards;
 }
 handlers.giveHeroExpPotion = function (args, context) {
     var result = getHeroFromPlayerInventory(args.hero);
