@@ -35,7 +35,10 @@ handlers.getExpiditionOne = function (args, context) {
         Keys: ["expiditionOne"],
     });
     var expiditionInfoObject = JSON.parse(getExpiditionInfo.Data.expiditionOne.Value);
-    return expiditionInfoObject;
+    if (expiditionInfoObject != null) {
+        return expiditionInfoObject;
+    }
+    return { messageValue: "no active expidition" };
 };
 function getExpiditionInfo() {
     var getExpiditionInfo = server.GetUserInternalData({
