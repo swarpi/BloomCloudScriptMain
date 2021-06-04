@@ -183,12 +183,12 @@ function getRuneFromExpidition(difficulty, duration) {
     var dust = rewards.dust;
     //let rewards = grantRuneToPlayerInventory(runeGrade,runeSetBonus,amount);
     var runeGradesIndex = getRandomInt(1, rewards.grade.length);
-    log.debug(rewards.grade.lenght);
-    log.debug(runeGradesIndex);
-    var runeGrade = rewards.grade[runeGradesIndex];
-    log.debug(dust);
-    log.debug(runeGrade);
-    log.debug(runes);
+    // log.debug(rewards.grade.length);
+    // log.debug(runeGradesIndex);
+    var runeGrade = rewards.grade[runeGradesIndex - 1];
+    // log.debug(dust);
+    // log.debug(runeGrade);
+    // log.debug(runes);
     grantRuneToPlayerInventoryNew(runeGrade, runeSetBonus, runes[0], runes[1], runes[2]);
     return rewards;
 }
