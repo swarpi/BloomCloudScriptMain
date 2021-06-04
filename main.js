@@ -34,8 +34,8 @@ handlers.getExpiditionOne = function (args, context) {
         PlayFabId: currentPlayerId,
         Keys: ["expiditionOne"],
     });
-    var expiditionInfoObject = JSON.parse(getExpiditionInfo.Data.expiditionOne.Value);
-    if (expiditionInfoObject != null) {
+    if (getExpiditionInfo.Data.expiditionOne.Value != null) {
+        var expiditionInfoObject = JSON.parse(getExpiditionInfo.Data.expiditionOne.Value);
         return expiditionInfoObject;
     }
     return { messageValue: "no active expidition" };
@@ -60,11 +60,11 @@ handlers.finishExpidition = function (args, context) {
     // generate rewards and gold if expidition finish time is smaller than current time
     if (expiditionInfo.expiditionFinishTime < getCurrentTimeInSeconds() || args.manualFinish) {
         switch (expiditionInfo.expiditionType) {
-            case 0: {
+            case 1: {
                 rewards = finishRuneExpidition(expiditionInfo);
                 break;
             }
-            case 1: {
+            case 2: {
                 rewards = finishHeroExpExpidition(expiditionInfo);
                 break;
             }
@@ -681,6 +681,20 @@ handlers.getRune = function (args, context) {
     //log.debug(rune.subStats);
     return { runes: runeArray };
 };
+handlers.testRuneAmount = function (args, context) {
+    getRuneAmount(args.prob);
+};
+function getRuneAmount(probability) {
+    var minimumAmount = Math.trunc(probability);
+    var probabilityAmount = (probability - minimumAmount) * 100;
+    log.debug(minimumAmount.toString());
+    log.debug(probabilityAmount.toString());
+    var generatedNumber = getRandomInt(1, 100);
+    log.debug(generatedNumber);
+    if (probabilityAmount < generatedNumber) {
+        log.debug("you get an extra rune");
+    }
+}
 function getRuneStatsData() {
     var runeData = server.GetTitleInternalData({
         Keys: ["RuneStatsValue"],
