@@ -228,8 +228,8 @@ function getFutureTimeInSeconds(futureSeconds) {
     var y = Math.round(t / (seconds) + futureSeconds);
     return y;
 }
-handlers.heroExpRewards = function (args, context) {
-    getNewHeroExpPotion(args.diff, args.time);
+handlers.heroRuneRewwards = function (args, context) {
+    getNewRune(args.diff, args.time);
 };
 function getNewHeroExpPotion(difficulty, time) {
     var heroExpPotions = server.GetTitleInternalData({
@@ -237,6 +237,15 @@ function getNewHeroExpPotion(difficulty, time) {
     });
     var heroExpPotionsArray = JSON.parse(heroExpPotions.Data.ExpiditionPotions);
     var rewards = heroExpPotionsArray[difficulty][time];
+    return rewards;
+}
+function getNewRune(difficulty, time) {
+    var runeExpidition = server.GetTitleInternalData({
+        Keys: ["ExpiditionRunes"]
+    });
+    var runeArray = JSON.parse(runeExpidition.Data.ExpiditionRunes);
+    var rewards = runeArray[difficulty][time];
+    log.debug(rewards);
     return rewards;
 }
 handlers.giveHeroExpPotion = function (args, context) {
