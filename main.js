@@ -103,13 +103,14 @@ function finishHeroExpExpidition(expiditionInfo) {
 function finishRuneExpidition(expiditionInfo) {
     var rewards;
     var runeDust;
-    rewards = getRuneFromExpidition(expiditionInfo.expiditionDuration, expiditionInfo.expiditionDifficulty);
+    rewards = getRuneFromExpidition(expiditionInfo.expiditionDifficulty, expiditionInfo.expiditionDuration);
     // give player runes
     // give rune dust to player
-    runeDust = server.GetTitleInternalData({
-        Keys: ["ExpiditionRuneDust"]
-    });
-    var expditionRuneDust = JSON.parse(runeDust.Data.ExpiditionRuneDust)[expiditionInfo.expiditionDifficulty];
+    // runeDust = server.GetTitleInternalData({
+    //     Keys : ["ExpiditionRuneDust"]
+    // })
+    //let expditionRuneDust = JSON.parse(runeDust.Data.ExpiditionRuneDust)[expiditionInfo.expiditionDifficulty];
+    var expditionRuneDust = rewards.dust;
     server.AddUserVirtualCurrency({
         PlayFabId: currentPlayerId,
         Amount: expditionRuneDust,
@@ -168,14 +169,25 @@ function getHeroExpPotionFromExpidition(duration, difficulty) {
     var rewards = getRewardsFromNodes(nodes, amount);
     return rewards;
 }
-function getRuneFromExpidition(duration, difficulty) {
+handlers.runeExpiditionTest = function (args, context) {
+    getRuneFromExpidition(args.diff, args.time);
+};
+function getRuneFromExpidition(difficulty, duration) {
     var amountTime = expiditionTimeModifier[duration];
     var amount = Math.round(amountTime * 1.5);
     // TODO : generate runegrade based on difficulty
     // TODO : generate runeset maybe based on expiditionType
-    var runeGrade = "Silver";
     var runeSetBonus = "ATKSet";
-    var rewards = grantRuneToPlayerInventory(runeGrade, runeSetBonus, amount);
+    var rewards = getNewRune(difficulty, duration);
+    var runes = rewards.runes;
+    var dust = rewards.dust;
+    //let rewards = grantRuneToPlayerInventory(runeGrade,runeSetBonus,amount);
+    var runeGradesIndex = getRandomInt(1, rewards.grade.length);
+    var runeGrade = rewards.grade[runeGradesIndex];
+    log.debug(dust);
+    log.debug(runeGrade);
+    log.debug(runes);
+    grantRuneToPlayerInventoryNew(runeGrade, runeSetBonus, runes[0], runes[1], runes[2]);
     return rewards;
 }
 // draws rewards from an array based on the amount
@@ -560,150 +572,120 @@ handlers.getHeroExpRequirement = function (args, context) {
     return { data: info.Data.HeroExpRequirement };
 };
 var mainStatsData;
-handlers.grantRuneToPlayer = function (args, context) {
-    var runeArray = new Array(); // all infos about the runes
-    var runes = new Array(); // info about the runeslot
-    // generate array with the rune slots
-    mainStatsData = getRuneStatsData();
-    for (var i = 0; i < args.amount; i++) {
-        var rune = generateRune("Silver", "ATKSet");
-        switch (rune.runeSlot) {
-            case 0:
-                runes.push("AlphaRune");
-                break;
-            case 1:
-                runes.push("BetaRune");
-                break;
-            case 2:
-                runes.push("GammaRune");
-                break;
-        }
-        runeArray.push(rune);
-    }
-    // give the player the runes based on the rune slots
-    var grantedItems = server.GrantItemsToUser({
-        PlayFabId: currentPlayerId,
-        ItemIds: runes,
-        CatalogVersion: "Runes",
-    });
-    var counter = 0;
-    // need to sort both arrays, in order to give the right runes the right data
-    runeArray.sort(function (a, b) {
-        if (a.runeSlot < b.runeSlot) {
-            return -1;
-        }
-        if (a.runeSlot > b.runeSlot) {
-            return 1;
-        }
-        return 0;
-    });
-    grantedItems.ItemGrantResults.sort(function (a, b) {
-        if (a.ItemId < b.ItemId) {
-            return -1;
-        }
-        if (a.ItemId > b.ItemId) {
-            return 1;
-        }
-        return 0;
-    });
-    // update the rune custom data with the rune information
-    grantedItems.ItemGrantResults.forEach(function (item) {
-        var tempRune = runeArray[counter];
-        updateRune(item.ItemInstanceId, tempRune.mainStat, tempRune.subStats, tempRune.runeGrade, tempRune.runeSet, 0, 0);
-        counter++;
-    });
-    return { items: counter };
-};
-function grantRuneToPlayerInventory(runeGrade, runeSetBonus, amount) {
-    var runeArray = new Array(); // all infos about the runes
-    var runes = new Array(); // info about the runeslot
-    // generate array with the rune slots
-    mainStatsData = getRuneStatsData();
-    for (var i = 0; i < amount; i++) {
-        var rune = generateRune(runeGrade, runeSetBonus);
-        switch (rune.runeSlot) {
-            case 0:
-                runes.push("AlphaRune");
-                break;
-            case 1:
-                runes.push("BetaRune");
-                break;
-            case 2:
-                runes.push("GammaRune");
-                break;
-        }
-        runeArray.push(rune);
-    }
-    // give the player the runes based on the rune slots
-    var grantedItems = server.GrantItemsToUser({
-        PlayFabId: currentPlayerId,
-        ItemIds: runes,
-        CatalogVersion: "Runes",
-    });
-    var counter = 0;
-    // need to sort both arrays, in order to give the right runes the right data
-    runeArray.sort(function (a, b) {
-        if (a.runeSlot < b.runeSlot) {
-            return -1;
-        }
-        if (a.runeSlot > b.runeSlot) {
-            return 1;
-        }
-        return 0;
-    });
-    grantedItems.ItemGrantResults.sort(function (a, b) {
-        if (a.ItemId < b.ItemId) {
-            return -1;
-        }
-        if (a.ItemId > b.ItemId) {
-            return 1;
-        }
-        return 0;
-    });
-    // update the rune custom data with the rune information
-    grantedItems.ItemGrantResults.forEach(function (item) {
-        var tempRune = runeArray[counter];
-        updateRune(item.ItemInstanceId, tempRune.mainStat, tempRune.subStats, tempRune.runeGrade, tempRune.runeSet, 0, 0);
-        counter++;
-    });
-    return { items: counter, runes: runeArray };
-}
-function updateRune(ItemInstanceId, mainStat, subStats, grade, setBonus, level, stars) {
-    server.UpdateUserInventoryItemCustomData({
-        PlayFabId: currentPlayerId,
-        ItemInstanceId: ItemInstanceId,
-        Data: {
-            mainStat: JSON.stringify(mainStat),
-            subStats: JSON.stringify(subStats),
-            grade: grade,
-            runeSet: setBonus,
-            stars: stars,
-        },
-    });
-}
-handlers.getRune = function (args, context) {
-    var runeArray = new Array();
-    for (var i = 0; i < args.amount; i++) {
-        var rune = generateRune("Uncommon", "ATKSet");
-        runeArray.push(rune);
-    }
-    //log.debug(rune.subStats);
-    return { runes: runeArray };
-};
-handlers.testRuneAmount = function (args, context) {
-    getRuneAmount(args.prob);
-};
-function getRuneAmount(probability) {
-    var minimumAmount = Math.trunc(probability);
-    var probabilityAmount = (probability - minimumAmount) * 100;
-    log.debug(minimumAmount.toString());
-    log.debug(probabilityAmount.toString());
-    var generatedNumber = getRandomInt(1, 100);
-    log.debug(generatedNumber);
-    if (probabilityAmount < generatedNumber) {
-        log.debug("you get an extra rune");
-    }
-}
+// handlers.grantRuneToPlayer = function(args,context){
+//     let runeArray = new Array();// all infos about the runes
+//     let runes = new Array();    // info about the runeslot
+//     // generate array with the rune slots
+//     mainStatsData = getRuneStatsData();
+//     for(let i = 0; i < args.amount; i ++){
+//         let rune = generateRune("Silver","ATKSet");
+//         switch(rune.runeSlot){
+//             case 0:
+//                 runes.push("AlphaRune");
+//                 break;
+//             case 1:
+//                 runes.push("BetaRune");
+//                 break;
+//             case 2:
+//                 runes.push("GammaRune");
+//                 break;
+//         }
+//         runeArray.push(rune);
+//     }
+//     // give the player the runes based on the rune slots
+//     let grantedItems = server.GrantItemsToUser({
+//         PlayFabId: currentPlayerId,
+//         ItemIds : runes,
+//         CatalogVersion : "Runes",
+//     })
+//     let counter = 0;
+//     // need to sort both arrays, in order to give the right runes the right data
+//     runeArray.sort(function(a,b){
+//         if(a.runeSlot<b.runeSlot){return -1;}
+//         if(a.runeSlot>b.runeSlot){return 1;}
+//         return 0;
+//     })
+//     grantedItems.ItemGrantResults.sort(function(a,b){
+//         if(a.ItemId<b.ItemId){return -1;}
+//         if(a.ItemId>b.ItemId){return 1;}
+//         return 0;
+//     })
+//     // update the rune custom data with the rune information
+//     grantedItems.ItemGrantResults.forEach(item => {
+//         let tempRune = runeArray[counter];
+//         updateRune(item.ItemInstanceId,tempRune.mainStat,tempRune.subStats, tempRune.runeGrade,tempRune.runeSet,0,0);
+//         counter ++;
+//     })
+//     return {items :counter};
+// }
+// function grantRuneToPlayerInventory(runeGrade,runeSetBonus,amount){
+//     let runeArray = new Array();// all infos about the runes
+//     let runes = new Array();    // info about the runeslot
+//     // generate array with the rune slots
+//     mainStatsData = getRuneStatsData();
+//     for(let i = 0; i < amount; i ++){
+//         let rune = generateRune(runeGrade,runeSetBonus);
+//         switch(rune.runeSlot){
+//             case 0:
+//                 runes.push("AlphaRune");
+//                 break;
+//             case 1:
+//                 runes.push("BetaRune");
+//                 break;
+//             case 2:
+//                 runes.push("GammaRune");
+//                 break;
+//         }
+//         runeArray.push(rune);
+//     }
+//     // give the player the runes based on the rune slots
+//     let grantedItems = server.GrantItemsToUser({
+//         PlayFabId: currentPlayerId,
+//         ItemIds : runes,
+//         CatalogVersion : "Runes",
+//     })
+//     let counter = 0;
+//     // need to sort both arrays, in order to give the right runes the right data
+//     runeArray.sort(function(a,b){
+//         if(a.runeSlot<b.runeSlot){return -1;}
+//         if(a.runeSlot>b.runeSlot){return 1;}
+//         return 0;
+//     })
+//     grantedItems.ItemGrantResults.sort(function(a,b){
+//         if(a.ItemId<b.ItemId){return -1;}
+//         if(a.ItemId>b.ItemId){return 1;}
+//         return 0;
+//     })
+//     // update the rune custom data with the rune information
+//     grantedItems.ItemGrantResults.forEach(item => {
+//         let tempRune = runeArray[counter];
+//         updateRune(item.ItemInstanceId,tempRune.mainStat,tempRune.subStats, tempRune.runeGrade,tempRune.runeSet,0,0);
+//         counter ++;
+//     })
+//     return {items :counter,runes : runeArray};
+// }
+// function updateRune(ItemInstanceId,mainStat,subStats,grade,setBonus,level,stars){
+//     server.UpdateUserInventoryItemCustomData({
+//         PlayFabId: currentPlayerId,
+//         ItemInstanceId : ItemInstanceId,
+//         Data: {
+//             mainStat : JSON.stringify(mainStat),
+//             subStats : JSON.stringify(subStats),
+//             grade : grade,
+//             runeSet : setBonus,
+//             stars : stars,
+//         },
+//     })
+// }
+// handlers.getRune = function(args,context){
+//     let runeArray = new Array();
+//     for(let i = 0; i < args.amount; i ++){
+//         let rune = generateRune("Uncommon","ATKSet");
+//         runeArray.push(rune);
+//     }
+//     //log.debug(rune.subStats);
+//     return {runes : runeArray}
+// }
 function getRuneStatsData() {
     var runeData = server.GetTitleInternalData({
         Keys: ["RuneStatsValue"],
@@ -711,250 +693,259 @@ function getRuneStatsData() {
     var runeDataArray = JSON.parse(runeData.Data.RuneStatsValue);
     return runeDataArray;
 }
-function generateRune(grade, setBonus) {
-    // generate a random rune:
-    // 0. runeSlot
-    var runeSlot = generateRuneSlot(); // 1. mainstat
-    //   a. mainStatType
-    //   b. value = 0; // value will be taken from another json file
-    var mainStat = generateMainStat(runeSlot); // 2. substat
-    //   if runeSlot == alpha generate 3 substats (similiar to mainstat)
-    //   if runeslot == beta generate 2 substats
-    //   if runeslot == gamma generate 1 subst
-    var subStats = generateSubStat(runeSlot, mainStat);
-    var runeGrade = grade;
-    var runeSet = setBonus;
-    var runeId = uuidv4();
-    return {
-        runeSlot: runeSlot,
-        mainStat: mainStat,
-        subStats: subStats,
-        runeGrade: runeGrade,
-        runeSet: runeSet,
-        runeId: runeId,
-    };
-}
-var RESTRICTIONS_ALPHA = [0, 1, 2, 3];
-var RESTRICTIONS_BETA = [1, 2, 3, 4, 5, 6, 7, 8];
-var RESTRICTIONS_GAMMA = [1, 2, 3, 4, 5];
-var RESTRICTIONS_SUBSTAT_TYPES = [1, 2, 3, 4, 5, 6, 7];
-function generateRuneSlot() {
-    var weights = [1, 2, 3];
-    var finalRuneSlot = drawFromWeightedArray(weights);
-    /*?*/
-    return finalRuneSlot;
-} // generateRuneSlot(); /*?*/
-//endregion
-/**
- * Generate main stat according to resrictions from runeSlot
- */
-function generateMainStat(runeSlot) {
-    var _mainStatsData$find;
-    var restrictionsList = [];
-    switch (runeSlot) {
-        case 0: {
-            restrictionsList = RESTRICTIONS_ALPHA;
-            break;
-        }
-        case 1: {
-            restrictionsList = RESTRICTIONS_BETA;
-            break;
-        }
-        case 2: {
-            restrictionsList = RESTRICTIONS_GAMMA;
-            break;
-        }
-        default: {
-            throw new Error("Not a valid rune slot: " + runeSlot);
-        }
-    }
-    var numOfDifferentMainStatTypes = restrictionsList.length;
-    var drawnIndex = drawFromWeightedArray(numOfDifferentMainStatTypes);
-    var drawnMainStatType = restrictionsList[drawnIndex];
-    var initialValue = (_mainStatsData$find = mainStatsData.find(function (data) { return (data.KeyWord === drawnMainStatType) && (data.Type == "mainStat"); })) === null || _mainStatsData$find === void 0
-        ? void 0
-        : _mainStatsData$find.InitialValue;
-    if (!initialValue) {
-        throw new Error("No main stat found for: " + drawnIndex);
-    }
-    var finalMainStat = {
-        type: drawnMainStatType,
-        value: initialValue[runeSlot],
-    };
-    return finalMainStat;
-} // generateMainStat()/*?*/
-/**
- * - Generate <amount> of sub stats based on runeSlot.
- * - Sub stat types are all different
- * - and also different from main stat
- */
-function generateSubStat(runeSlot, mainStat) {
-    var numOfSubStats;
-    switch (runeSlot) {
-        case 0: {
-            numOfSubStats = 3;
-            break;
-        }
-        case 1: {
-            numOfSubStats = 2;
-            break;
-        }
-        case 2: {
-            numOfSubStats = 1;
-            break;
-        }
-        default: {
-            throw new Error("Not a valid rune slot: " + runeSlot);
-        }
-    }
-    var numOfRestrictedSubStatTypes = RESTRICTIONS_SUBSTAT_TYPES.length;
-    var drawnSubStatTypeList = [];
-    var whileLoopLimiter = 0;
-    do {
-        var drawnIndex = drawFromWeightedArray(numOfRestrictedSubStatTypes);
-        var drawnSubStatType = RESTRICTIONS_SUBSTAT_TYPES[drawnIndex];
-        var sameAsMainType = drawnSubStatType === mainStat.type;
-        if (sameAsMainType)
-            continue;
-        var alreadyInList = drawnSubStatTypeList.includes(drawnSubStatType);
-        if (alreadyInList)
-            continue;
-        drawnSubStatTypeList.push(drawnSubStatType);
-        whileLoopLimiter++;
-    } while (drawnSubStatTypeList.length < numOfSubStats &&
-        whileLoopLimiter < 10000);
-    var finalSubStatList = drawnSubStatTypeList.map(function (drawnSubStatType) {
-        var _mainStatsData$find2;
-        var initialValue = (_mainStatsData$find2 = mainStatsData.find(function (data) { return (data.KeyWord === drawnSubStatType) && (data.Type == "subStat"); })) === null || _mainStatsData$find2 === void 0
-            ? void 0
-            : _mainStatsData$find2.InitialValue;
-        if (!initialValue) {
-            throw new Error("No sub stat found for: " + drawnSubStatType);
-        }
-        var finalSubStat = {
-            type: drawnSubStatType,
-            value: initialValue[runeSlot],
-        };
-        return finalSubStat;
-    });
-    return finalSubStatList;
-}
-// generateSubStat(0, {type: 0, value: 0});/*?*/
-// for (let i = 0; i < 10; i++) {
-//   drawSubStat({type: 0, value: 0}).type;/*?*/
+// function generateRune(grade,setBonus) {
+//   // generate a random rune:
+//   // 0. runeSlot
+//   const runeSlot = generateRuneSlot(); // 1. mainstat
+//   //   a. mainStatType
+//   //   b. value = 0; // value will be taken from another json file
+//   const mainStat = generateMainStat(runeSlot); // 2. substat
+//   //   if runeSlot == alpha generate 3 substats (similiar to mainstat)
+//   //   if runeslot == beta generate 2 substats
+//   //   if runeslot == gamma generate 1 subst
+//   const subStats = generateSubStat(runeSlot, mainStat);
+//   const runeGrade = grade;
+//   const runeSet = setBonus;
+//   const runeId = uuidv4();
+//   return {
+//     runeSlot,
+//     mainStat,
+//     subStats,
+//     runeGrade,
+//     runeSet,
+//     runeId,
+//   };
 // }
-/**
- * @param weightedArray - Eg. [1,3,6,2] or just 3 (would then default to [1,1,1])
- */
-function drawFromWeightedArray(weightedArray) {
-    if (!Array.isArray(weightedArray)) {
-        weightedArray = Array.from({
-            length: weightedArray
-        }, function () { return 1; });
-    }
-    var total = weightedArray.reduce(function (acc, num) { return acc + num; }, 0);
-    var odds = weightedArray.map(function (weight) { return weight / total; });
-    var oddsIntervals = [];
-    var accumulatedOdds = 0;
-    odds.forEach(function (odd) {
-        accumulatedOdds += odd;
-        oddsIntervals.push(accumulatedOdds);
-    });
-    if (Number(oddsIntervals[oddsIntervals.length - 1].toFixed(13)) !== 1) {
-        throw new Error("Last odd intervall should be 1");
-    }
-    var rnd = Math.random();
-    var oddsIndex = oddsIntervals.findIndex(function (odd) { return rnd <= odd; });
-    return oddsIndex;
-} // drawFromWeightedArray([1,2,3])/*?*/
-handlers.disenchantRunes = function (args, context) {
-    var totalDustAmount = 0;
-    var gradeDust = {
-        "Wood": 1,
-        "Bronze": 1.1,
-        "Silver": 1.2,
-        "Gold": 1.3,
-    };
-    var levelDust = {
-        "0": 100,
-        "1": 150,
-        "2": 200,
-        "3": 250,
-        "4": 300,
-        "5": 350,
-    };
-    var allItems = server.GetUserInventory({
-        PlayFabId: currentPlayerId,
-    });
-    var allRunes = allItems.Inventory.filter(function (x) { return x.CatalogVersion == "Runes"; });
-    var runeItemIds = new Array();
-    var selectedRunes = allRunes.filter(function (x) { return args.runeIds.includes(x.ItemInstanceId); });
-    selectedRunes.forEach(function (x) {
-        // calculate the amount of dust gained by a rune
-        var gradeValue = gradeDust[x.CustomData["grade"]];
-        var levelValue = levelDust[0];
-        if (x.CustomData["level"]) {
-            levelValue = levelDust[x.CustomData["level"]];
-        }
-        var runeDust = gradeValue * levelValue;
-        totalDustAmount += runeDust;
-        // push the ids to an array to remove it later
-        var revokeItem = {
-            PlayFabId: currentPlayerId,
-            ItemInstanceId: x.ItemInstanceId,
-        };
-        runeItemIds.push(revokeItem);
-    });
-    server.RevokeInventoryItems({
-        Items: runeItemIds,
-    });
-    server.AddUserVirtualCurrency({
-        Amount: totalDustAmount,
-        PlayFabId: currentPlayerId,
-        VirtualCurrency: "RD",
-    });
-    return { messageValue: ("dust generated " + totalDustAmount) };
-};
-handlers.combineRunes = function (args, context) {
-    // check if player has enough gold
-    var allItems = server.GetUserInventory({
-        PlayFabId: currentPlayerId,
-    });
-    if (args.mainRuneId == args.materialRuneId) {
-        log.debug("ups you cant use the same rune");
-        return;
-    }
-    // get the runes from based on the item id
-    var mainRune = allItems.Inventory.find(function (x) { return x.ItemInstanceId == args.mainRuneId; });
-    var materialRune = allItems.Inventory.find(function (x) { return x.ItemInstanceId == args.materialRuneId; });
-    if (mainRune.CustomData["stars"] != materialRune.CustomData["stars"]) {
-        log.debug("ups not the same stars");
-        return;
-    }
-    if (mainRune.ItemClass != materialRune.ItemClass) {
-        log.debug("ups not the same grade");
-        return;
-    }
-    // check if rune has reached max star level
-    if (isRuneMaxStar(mainRune.CustomData["grade"], mainRune.CustomData["stars"])) {
-        log.debug("ups rune is already max star");
-        return;
-    }
-    // delete the materialRune
-    server.RevokeInventoryItem({
-        PlayFabId: currentPlayerId,
-        ItemInstanceId: materialRune.ItemInstanceId,
-    });
-    // increase the stars of the mainRune
-    server.UpdateUserInventoryItemCustomData({
-        PlayFabId: currentPlayerId,
-        ItemInstanceId: mainRune.ItemInstanceId,
-        Data: {
-            stars: (Number(mainRune.CustomData["stars"]) + 1).toString(),
-        },
-    });
-    return { messageValue: ("rune star increased sucessfully ") };
-};
+// const RESTRICTIONS_ALPHA = [0, 1, 2, 3];
+// const RESTRICTIONS_BETA = [1, 2, 3, 4, 5, 6, 7, 8];
+// const RESTRICTIONS_GAMMA = [1, 2, 3, 4, 5];
+// const RESTRICTIONS_SUBSTAT_TYPES = [1, 2, 3, 4, 5, 6, 7];
+// function generateRuneSlot() {
+//   const weights = [1,2,3];
+//   const finalRuneSlot = drawFromWeightedArray(weights);
+//   /*?*/
+//   return finalRuneSlot;
+// } // generateRuneSlot(); /*?*/
+// //endregion
+// /**
+//  * Generate main stat according to resrictions from runeSlot
+//  */
+// function generateMainStat(runeSlot) {
+//   var _mainStatsData$find;
+//   let restrictionsList = [];
+//   switch (runeSlot) {
+//     case 0: {
+//       restrictionsList = RESTRICTIONS_ALPHA;
+//       break;
+//     }
+//     case 1: {
+//       restrictionsList = RESTRICTIONS_BETA;
+//       break;
+//     }
+//     case 2: {
+//       restrictionsList = RESTRICTIONS_GAMMA;
+//       break;
+//     }
+//     default: {
+//       throw new Error(`Not a valid rune slot: ${runeSlot}`);
+//     }
+//   }
+//   const numOfDifferentMainStatTypes = restrictionsList.length;
+//   const drawnIndex = drawFromWeightedArray(numOfDifferentMainStatTypes);
+//   const drawnMainStatType = restrictionsList[drawnIndex];
+//   const initialValue =
+//     (_mainStatsData$find = mainStatsData.find(
+//       (data) => (data.KeyWord === drawnMainStatType) && (data.Type == "mainStat")
+//     )) === null || _mainStatsData$find === void 0
+//       ? void 0
+//       : _mainStatsData$find.InitialValue;
+//   if (!initialValue) {
+//     throw new Error(`No main stat found for: ${drawnIndex}`);
+//   }
+//   let finalMainStat = {
+//     type: drawnMainStatType,
+//     value: initialValue[runeSlot],
+//   };
+//   return finalMainStat;
+// } // generateMainStat()/*?*/
+// /**
+//  * - Generate <amount> of sub stats based on runeSlot.
+//  * - Sub stat types are all different
+//  * - and also different from main stat
+//  */
+// function generateSubStat(runeSlot, mainStat) {
+//   let numOfSubStats;
+//   switch (runeSlot) {
+//     case 0: {
+//       numOfSubStats = 3;
+//       break;
+//     }
+//     case 1: {
+//       numOfSubStats = 2;
+//       break;
+//     }
+//     case 2: {
+//       numOfSubStats = 1;
+//       break;
+//     }
+//     default: {
+//       throw new Error(`Not a valid rune slot: ${runeSlot}`);
+//     }
+//   }
+//   const numOfRestrictedSubStatTypes = RESTRICTIONS_SUBSTAT_TYPES.length;
+//   let drawnSubStatTypeList = [];
+//   let whileLoopLimiter = 0;
+//   do {
+//     const drawnIndex = drawFromWeightedArray(numOfRestrictedSubStatTypes);
+//     const drawnSubStatType = RESTRICTIONS_SUBSTAT_TYPES[drawnIndex];
+//     const sameAsMainType = drawnSubStatType === mainStat.type;
+//     if (sameAsMainType) continue;
+//     const alreadyInList = drawnSubStatTypeList.includes(drawnSubStatType);
+//     if (alreadyInList) continue;
+//     drawnSubStatTypeList.push(drawnSubStatType);
+//     whileLoopLimiter++;
+//   } while (
+//     drawnSubStatTypeList.length < numOfSubStats &&
+//     whileLoopLimiter < 10000
+//   );
+//   const finalSubStatList = drawnSubStatTypeList.map((drawnSubStatType) => {
+//     var _mainStatsData$find2;
+//     const initialValue =
+//       (_mainStatsData$find2 = mainStatsData.find(
+//         (data) => (data.KeyWord === drawnSubStatType) && (data.Type == "subStat")
+//       )) === null || _mainStatsData$find2 === void 0
+//         ? void 0
+//         : _mainStatsData$find2.InitialValue;
+//     if (!initialValue) {
+//       throw new Error(`No sub stat found for: ${drawnSubStatType}`);
+//     }
+//     let finalSubStat = {
+//       type: drawnSubStatType,
+//       value: initialValue[runeSlot],
+//     };
+//     return finalSubStat;
+//   });
+//   return finalSubStatList;
+// } 
+// // generateSubStat(0, {type: 0, value: 0});/*?*/
+// // for (let i = 0; i < 10; i++) {
+// //   drawSubStat({type: 0, value: 0}).type;/*?*/
+// // }
+// /**
+//  * @param weightedArray - Eg. [1,3,6,2] or just 3 (would then default to [1,1,1])
+//  */
+// function drawFromWeightedArray(weightedArray) {
+//   if (!Array.isArray(weightedArray)) {
+//     weightedArray = Array.from(
+//       {
+//         length: weightedArray
+//       },
+//       () => 1
+//     );
+//   }
+//   const total = weightedArray.reduce((acc, num) => acc + num, 0);
+//   const odds = weightedArray.map((weight) => weight / total);
+//   let oddsIntervals = [];
+//   let accumulatedOdds = 0;
+//   odds.forEach((odd) => {
+//     accumulatedOdds += odd;
+//     oddsIntervals.push(accumulatedOdds);
+//   });
+//   if (Number(oddsIntervals[oddsIntervals.length - 1].toFixed(13)) !== 1) {
+//     throw new Error("Last odd intervall should be 1");
+//   }
+//   const rnd = Math.random();
+//   const oddsIndex = oddsIntervals.findIndex((odd) => rnd <= odd);
+//   return oddsIndex;
+// } // drawFromWeightedArray([1,2,3])/*?*/
+// handlers.disenchantRunes = function(args,context){
+//     let totalDustAmount = 0;
+//     const gradeDust = {
+//         "Wood":     1,
+//         " ":   1.1,
+//         "Silver":   1.2,
+//         "Gold":     1.3,
+//     }
+//     const levelDust = {
+//         "0" :100,
+//         "1" :150,
+//         "2" :200,
+//         "3" :250,
+//         "4" :300,
+//         "5" :350,
+//     }
+//     let allItems = server.GetUserInventory({
+//         PlayFabId: currentPlayerId,
+//     })
+//     let allRunes = allItems.Inventory.filter(x => x.CatalogVersion == "Runes");
+//     let runeItemIds = new Array();
+//     let selectedRunes = allRunes.filter(x => args.runeIds.includes(x.ItemInstanceId));
+//     selectedRunes.forEach(x => {
+//         // calculate the amount of dust gained by a rune
+//         let gradeValue = gradeDust[x.CustomData["grade"]];
+//         let levelValue = levelDust[0];
+//         if(x.CustomData["level"]){
+//             levelValue = levelDust[x.CustomData["level"]];
+//         }
+//         let runeDust = gradeValue * levelValue;
+//         totalDustAmount += runeDust
+//         // push the ids to an array to remove it later
+//         let revokeItem = {
+//             PlayFabId: currentPlayerId,
+//             ItemInstanceId: x.ItemInstanceId,
+//         }
+//         runeItemIds.push(revokeItem);
+//     });
+//     server.RevokeInventoryItems({
+//         Items : runeItemIds,
+//     })
+//     server.AddUserVirtualCurrency({
+//         Amount : totalDustAmount,
+//         PlayFabId: currentPlayerId,
+//         VirtualCurrency : "RD",
+//     });
+//     return {messageValue: ("dust generated " + totalDustAmount)}
+// }
+// handlers.combineRunes = function(args,context){
+//     // check if player has enough gold
+//     let allItems = server.GetUserInventory({
+//         PlayFabId: currentPlayerId,
+//     })
+//     if(args.mainRuneId == args.materialRuneId){
+//         log.debug("ups you cant use the same rune");
+//         return;
+//     }
+//     // get the runes from based on the item id
+//     let mainRune = allItems.Inventory.find(x => x.ItemInstanceId == args.mainRuneId);
+//     let materialRune = allItems.Inventory.find(x => x.ItemInstanceId == args.materialRuneId);
+//     if(mainRune.CustomData["stars"] != materialRune.CustomData["stars"]){
+//         log.debug("ups not the same stars");
+//         return;
+//     }
+//     if(mainRune.ItemClass != materialRune.ItemClass){
+//         log.debug("ups not the same grade");
+//         return;
+//     }
+//     // check if rune has reached max star level
+//     if(isRuneMaxStar(mainRune.CustomData["grade"],mainRune.CustomData["stars"])){
+//         log.debug("ups rune is already max star");
+//         return;
+//     }
+//     // delete the materialRune
+//     server.RevokeInventoryItem({
+//         PlayFabId: currentPlayerId,
+//         ItemInstanceId : materialRune.ItemInstanceId,
+//     })
+//     // increase the stars of the mainRune
+//     server.UpdateUserInventoryItemCustomData({
+//         PlayFabId: currentPlayerId,
+//         ItemInstanceId : mainRune.ItemInstanceId,
+//         Data: {
+//             stars : (Number(mainRune.CustomData["stars"]) + 1).toString(),
+//         },
+//     })
+//     return {messageValue: ("rune star increased sucessfully ")}
+// }
 var runeSubstatIncreaseLevels = [5, 8, 11, 14];
 handlers.levelUpRuneOneLevel = function (args, context) {
     var allItems = server.GetUserInventory({
@@ -1163,18 +1154,6 @@ handlers.giveRunesToHero = function (args, context) {
     });
     return { messageValue: "sucessfully given hero rune" };
 };
-/**
- * Returns a random integer between min (inclusive) and max (inclusive).
- * The value is no lower than min (or the next integer greater than min
- * if min isn't an integer) and no greater than max (or the next integer
- * lower than max if max isn't an integer).
- * Using Math.round() will give you a non-uniform distribution!
- */
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // Welcome to your first Cloud Script revision!
@@ -1299,6 +1278,255 @@ function uuidv4() {
 // export function foo() {
 //     console.log(externalVar)
 // }
+function grantRuneToPlayerInventoryNew(runeGrade, runeSetBonus, alphaProb, betaProb, gammaProb) {
+    var runeArray = new Array(); // all infos about the runes
+    var runes = new Array(); // info about the runeslot
+    // generate array with the rune slots
+    var alphaAmount = getRuneAmount(alphaProb);
+    var betaAmount = getRuneAmount(betaProb);
+    var gammaAmount = getRuneAmount(gammaProb);
+    mainStatsData = getRuneStatsData();
+    for (var i = 0; i < alphaAmount; i++) {
+        var rune = generateRune(0, runeGrade, runeSetBonus);
+        runes.push("AlphaRune");
+        runeArray.push(rune);
+    }
+    for (var i = 0; i < betaAmount; i++) {
+        var rune = generateRune(1, runeGrade, runeSetBonus);
+        runes.push("BetaRune");
+        runeArray.push(rune);
+    }
+    for (var i = 0; i < gammaAmount; i++) {
+        var rune = generateRune(2, runeGrade, runeSetBonus);
+        runes.push("GammaRune");
+        runeArray.push(rune);
+    }
+    // give the player the runes based on the rune slots
+    var grantedItems = server.GrantItemsToUser({
+        PlayFabId: currentPlayerId,
+        ItemIds: runes,
+        CatalogVersion: "Runes",
+    });
+    var counter = 0;
+    // need to sort both arrays, in order to give the right runes the right data
+    runeArray.sort(function (a, b) {
+        if (a.runeSlot < b.runeSlot) {
+            return -1;
+        }
+        if (a.runeSlot > b.runeSlot) {
+            return 1;
+        }
+        return 0;
+    });
+    grantedItems.ItemGrantResults.sort(function (a, b) {
+        if (a.ItemId < b.ItemId) {
+            return -1;
+        }
+        if (a.ItemId > b.ItemId) {
+            return 1;
+        }
+        return 0;
+    });
+    // update the rune custom data with the rune information
+    grantedItems.ItemGrantResults.forEach(function (item) {
+        var tempRune = runeArray[counter];
+        updateRuneNew(item.ItemInstanceId, tempRune.mainStat, tempRune.subStats, tempRune.runeGrade, tempRune.runeSet, 0, 0);
+        counter++;
+    });
+    return { items: counter, runes: runeArray };
+}
+handlers.testRuneAmount = function (args, context) {
+    getRuneAmount(args.prob);
+};
+function getRuneAmount(probability) {
+    // the minium amount of runes (e.g. 2.5 -> minimum = 2)
+    var minimumAmount = Math.trunc(probability);
+    // (e.g. 2.5 -> 0.5 * 100 -> 50)
+    var probabilityAmount = (probability - minimumAmount) * 100;
+    // draw a random int to get see check if an extra rune is generated
+    var generatedNumber = getRandomInt(1, 100);
+    // e.g. 30 > 40 -> no extra rune, but if 30 > 25 -> get extra rune... so 3/10 cases you get an extra rune
+    if (probabilityAmount > generatedNumber) {
+        minimumAmount += 1;
+    }
+    return minimumAmount;
+}
+function updateRuneNew(ItemInstanceId, mainStat, subStats, grade, setBonus, level, stars) {
+    server.UpdateUserInventoryItemCustomData({
+        PlayFabId: currentPlayerId,
+        ItemInstanceId: ItemInstanceId,
+        Data: {
+            mainStat: JSON.stringify(mainStat),
+            subStats: JSON.stringify(subStats),
+            grade: grade,
+            runeSet: setBonus,
+            stars: stars,
+        },
+    });
+}
+function generateRune(runeSlot, grade, setBonus) {
+    // generate a random rune:
+    // 0. runeSlot
+    // 1. mainstat
+    //   a. mainStatType
+    //   b. value = 0; // value will be taken from another json file
+    var mainStat = generateMainStat(runeSlot); // 2. substat
+    //   if runeSlot == alpha generate 3 substats (similiar to mainstat)
+    //   if runeslot == beta generate 2 substats
+    //   if runeslot == gamma generate 1 subst
+    var subStats = generateSubStat(runeSlot, mainStat);
+    var runeGrade = grade;
+    var runeSet = setBonus;
+    var runeId = uuidv4();
+    return {
+        runeSlot: runeSlot,
+        mainStat: mainStat,
+        subStats: subStats,
+        runeGrade: runeGrade,
+        runeSet: runeSet,
+        runeId: runeId,
+    };
+}
+var RESTRICTIONS_ALPHA = [0, 1, 2, 3];
+var RESTRICTIONS_BETA = [1, 2, 3, 4, 5, 6, 7, 8];
+var RESTRICTIONS_GAMMA = [1, 2, 3, 4, 5];
+var RESTRICTIONS_SUBSTAT_TYPES = [1, 2, 3, 4, 5, 6, 7];
+// generateRuneSlot(); /*?*/
+//endregion
+/**
+ * Generate main stat according to resrictions from runeSlot
+ */
+function generateMainStat(runeSlot) {
+    var _mainStatsData$find;
+    var restrictionsList = [];
+    switch (runeSlot) {
+        case 0: {
+            restrictionsList = RESTRICTIONS_ALPHA;
+            break;
+        }
+        case 1: {
+            restrictionsList = RESTRICTIONS_BETA;
+            break;
+        }
+        case 2: {
+            restrictionsList = RESTRICTIONS_GAMMA;
+            break;
+        }
+        default: {
+            throw new Error("Not a valid rune slot: " + runeSlot);
+        }
+    }
+    var numOfDifferentMainStatTypes = restrictionsList.length;
+    var drawnIndex = drawFromWeightedArray(numOfDifferentMainStatTypes);
+    var drawnMainStatType = restrictionsList[drawnIndex];
+    var initialValue = (_mainStatsData$find = mainStatsData.find(function (data) { return (data.KeyWord === drawnMainStatType) && (data.Type == "mainStat"); })) === null || _mainStatsData$find === void 0
+        ? void 0
+        : _mainStatsData$find.InitialValue;
+    if (!initialValue) {
+        throw new Error("No main stat found for: " + drawnIndex);
+    }
+    var finalMainStat = {
+        type: drawnMainStatType,
+        value: initialValue[runeSlot],
+    };
+    return finalMainStat;
+} // generateMainStat()/*?*/
+/**
+ * - Generate <amount> of sub stats based on runeSlot.
+ * - Sub stat types are all different
+ * - and also different from main stat
+ */
+function generateSubStat(runeSlot, mainStat) {
+    var numOfSubStats;
+    switch (runeSlot) {
+        case 0: {
+            numOfSubStats = 3;
+            break;
+        }
+        case 1: {
+            numOfSubStats = 2;
+            break;
+        }
+        case 2: {
+            numOfSubStats = 1;
+            break;
+        }
+        default: {
+            throw new Error("Not a valid rune slot: " + runeSlot);
+        }
+    }
+    var numOfRestrictedSubStatTypes = RESTRICTIONS_SUBSTAT_TYPES.length;
+    var drawnSubStatTypeList = [];
+    var whileLoopLimiter = 0;
+    do {
+        var drawnIndex = drawFromWeightedArray(numOfRestrictedSubStatTypes);
+        var drawnSubStatType = RESTRICTIONS_SUBSTAT_TYPES[drawnIndex];
+        var sameAsMainType = drawnSubStatType === mainStat.type;
+        if (sameAsMainType)
+            continue;
+        var alreadyInList = drawnSubStatTypeList.includes(drawnSubStatType);
+        if (alreadyInList)
+            continue;
+        drawnSubStatTypeList.push(drawnSubStatType);
+        whileLoopLimiter++;
+    } while (drawnSubStatTypeList.length < numOfSubStats &&
+        whileLoopLimiter < 10000);
+    var finalSubStatList = drawnSubStatTypeList.map(function (drawnSubStatType) {
+        var _mainStatsData$find2;
+        var initialValue = (_mainStatsData$find2 = mainStatsData.find(function (data) { return (data.KeyWord === drawnSubStatType) && (data.Type == "subStat"); })) === null || _mainStatsData$find2 === void 0
+            ? void 0
+            : _mainStatsData$find2.InitialValue;
+        if (!initialValue) {
+            throw new Error("No sub stat found for: " + drawnSubStatType);
+        }
+        var finalSubStat = {
+            type: drawnSubStatType,
+            value: initialValue[runeSlot],
+        };
+        return finalSubStat;
+    });
+    return finalSubStatList;
+}
+// generateSubStat(0, {type: 0, value: 0});/*?*/
+// for (let i = 0; i < 10; i++) {
+//   drawSubStat({type: 0, value: 0}).type;/*?*/
+// }
+/**
+ * @param weightedArray - Eg. [1,3,6,2] or just 3 (would then default to [1,1,1])
+ */
+function drawFromWeightedArray(weightedArray) {
+    if (!Array.isArray(weightedArray)) {
+        weightedArray = Array.from({
+            length: weightedArray
+        }, function () { return 1; });
+    }
+    var total = weightedArray.reduce(function (acc, num) { return acc + num; }, 0);
+    var odds = weightedArray.map(function (weight) { return weight / total; });
+    var oddsIntervals = [];
+    var accumulatedOdds = 0;
+    odds.forEach(function (odd) {
+        accumulatedOdds += odd;
+        oddsIntervals.push(accumulatedOdds);
+    });
+    if (Number(oddsIntervals[oddsIntervals.length - 1].toFixed(13)) !== 1) {
+        throw new Error("Last odd intervall should be 1");
+    }
+    var rnd = Math.random();
+    var oddsIndex = oddsIntervals.findIndex(function (odd) { return rnd <= odd; });
+    return oddsIndex;
+} // drawFromWeightedArray([1,2,3])/*?*/
+// /**
+//  * Returns a random integer between min (inclusive) and max (inclusive).
+//  * The value is no lower than min (or the next integer greater than min
+//  * if min isn't an integer) and no greater than max (or the next integer
+//  * lower than max if max isn't an integer).
+//  * Using Math.round() will give you a non-uniform distribution!
+//  */
+function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
 // import { externalVar, foo } from "./import-me"
 // const hi = 'hello'
 // foo()
