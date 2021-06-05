@@ -1028,6 +1028,8 @@ function grantRuneToPlayerInventoryNew(runeGrade, runeSetBonus, alphaProb, betaP
     }
     for (var i = 0; i < gammaAmount; i++) {
         var runeGradesIndex = getRandomInt(1, runeGrade.length);
+        log.debug(runeGrade.length.toString());
+        log.debug(runeGradesIndex);
         var tempGrade = runeGrade[runeGradesIndex - 1];
         var rune = generateRune(2, tempGrade, runeSetBonus);
         runes.push("GammaRune");
