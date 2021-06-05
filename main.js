@@ -110,14 +110,12 @@ function finishRuneExpidition(expiditionInfo) {
     //     Keys : ["ExpiditionRuneDust"]
     // })
     //let expditionRuneDust = JSON.parse(runeDust.Data.ExpiditionRuneDust)[expiditionInfo.expiditionDifficulty];
-    var expditionRuneDust = rewards.dust;
+    var expditionRuneDust = rewards.rewards.dust;
     server.AddUserVirtualCurrency({
         PlayFabId: currentPlayerId,
         Amount: expditionRuneDust,
         VirtualCurrency: "RD",
     });
-    log.debug(expditionRuneDust);
-    log.debug(rewards);
     return { gold: 0, dust: runeDust, itemRewards: rewards.runes };
 }
 var expiditionTimeModifier = {
@@ -182,8 +180,8 @@ function getRuneFromExpidition(difficulty, duration) {
     var dust = rewards.dust;
     //let rewards = grantRuneToPlayerInventory(runeGrade,runeSetBonus,amount);
     log.debug(rewards.grade);
-    grantRuneToPlayerInventoryNew(rewards.grade, runeSetBonus, runes[0], runes[1], runes[2]);
-    return rewards;
+    var runesGranted = grantRuneToPlayerInventoryNew(rewards.grade, runeSetBonus, runes[0], runes[1], runes[2]);
+    return { rewards: rewards, runes: runesGranted };
 }
 // draws rewards from an array based on the amount
 function getRewardsFromNodes(nodes, amount) {
