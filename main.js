@@ -1013,17 +1013,23 @@ function grantRuneToPlayerInventoryNew(runeGrade, runeSetBonus, alphaProb, betaP
     var gammaAmount = getRuneAmount(gammaProb);
     mainStatsData = getRuneStatsData();
     for (var i = 0; i < alphaAmount; i++) {
-        var rune = generateRune(0, runeGrade, runeSetBonus);
+        var runeGradesIndex = getRandomInt(1, runeGrade.length);
+        var tempGrade = runeGrade[runeGradesIndex - 1];
+        var rune = generateRune(0, tempGrade, runeSetBonus);
         runes.push("AlphaRune");
         runeArray.push(rune);
     }
     for (var i = 0; i < betaAmount; i++) {
-        var rune = generateRune(1, runeGrade, runeSetBonus);
+        var runeGradesIndex = getRandomInt(1, runeGrade.length);
+        var tempGrade = runeGrade[runeGradesIndex - 1];
+        var rune = generateRune(1, tempGrade, runeSetBonus);
         runes.push("BetaRune");
         runeArray.push(rune);
     }
     for (var i = 0; i < gammaAmount; i++) {
-        var rune = generateRune(2, runeGrade, runeSetBonus);
+        var runeGradesIndex = getRandomInt(1, runeGrade.length);
+        var tempGrade = runeGrade[runeGradesIndex - 1];
+        var rune = generateRune(2, tempGrade, runeSetBonus);
         runes.push("GammaRune");
         runeArray.push(rune);
     }
