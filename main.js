@@ -118,7 +118,7 @@ function finishRuneExpidition(expiditionInfo) {
     });
     log.debug(expditionRuneDust);
     log.debug(rewards);
-    return rewards;
+    return { gold: 0, dust: runeDust, itemRewards: rewards.runes };
 }
 var expiditionTimeModifier = {
     "2": 1,
@@ -175,7 +175,6 @@ handlers.runeExpiditionTest = function (args, context) {
 function getRuneFromExpidition(difficulty, duration) {
     var amountTime = expiditionTimeModifier[duration];
     var amount = Math.round(amountTime * 1.5);
-    // TODO : generate runegrade based on difficulty
     // TODO : generate runeset maybe based on expiditionType
     var runeSetBonus = "ATKSet";
     var rewards = getNewRune(difficulty, duration);
@@ -183,12 +182,7 @@ function getRuneFromExpidition(difficulty, duration) {
     var dust = rewards.dust;
     //let rewards = grantRuneToPlayerInventory(runeGrade,runeSetBonus,amount);
     var runeGradesIndex = getRandomInt(1, rewards.grade.length);
-    // log.debug(rewards.grade.length);
-    // log.debug(runeGradesIndex);
     var runeGrade = rewards.grade[runeGradesIndex - 1];
-    // log.debug(dust);
-    // log.debug(runeGrade);
-    // log.debug(runes);
     grantRuneToPlayerInventoryNew(runeGrade, runeSetBonus, runes[0], runes[1], runes[2]);
     return rewards;
 }
