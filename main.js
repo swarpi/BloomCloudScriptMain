@@ -585,7 +585,7 @@ handlers.disenchantRunes = function (args, context) {
     var totalDustAmount = 0;
     var gradeDust = {
         "Wood": 1,
-        " ": 1.1,
+        "Bronze": 1.1,
         "Silver": 1.2,
         "Gold": 1.3,
     };
@@ -610,6 +610,8 @@ handlers.disenchantRunes = function (args, context) {
         if (x.CustomData["level"]) {
             levelValue = levelDust[x.CustomData["level"]];
         }
+        log.debug(gradeValue);
+        log.debug(levelValue.toString());
         var runeDust = gradeValue * levelValue;
         totalDustAmount += runeDust;
         // push the ids to an array to remove it later
