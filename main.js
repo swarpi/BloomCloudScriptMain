@@ -263,21 +263,27 @@ handlers.giveHeroExpPotion = function (args, context) {
     var potionArray = new Array(0);
     var allPotionPrices = getHeroPotionGoldPrice();
     var totalPotionPrice = 0;
+    var tinyPotionConsumed = 0;
     var smallPotionConsumed = 0;
-    var mediumPotionConsumed = 0;
+    var normalPotionConsumed = 0;
     var largePotionConsumed = 0;
     // count the potions
     potionList.forEach(function (x) {
         switch (x) {
+            case "tiny":
+                potionArray.push(potionAmount.tiny);
+                totalPotionPrice += Number(allPotionPrices.tiny);
+                tinyPotionConsumed++;
+                break;
             case "small":
                 potionArray.push(potionAmount.small);
                 totalPotionPrice += Number(allPotionPrices.small);
                 smallPotionConsumed++;
                 break;
-            case "medium":
-                potionArray.push(potionAmount.medium);
-                totalPotionPrice += Number(allPotionPrices.medium);
-                mediumPotionConsumed++;
+            case "normal":
+                potionArray.push(potionAmount.normal);
+                totalPotionPrice += Number(allPotionPrices.normal);
+                normalPotionConsumed++;
                 break;
             case "large":
                 potionArray.push(potionAmount.large);
@@ -297,12 +303,16 @@ handlers.giveHeroExpPotion = function (args, context) {
         return;
     }
     // check if player has enough potions left
+    if (!itemHasEnoughRemainingUsesLeft(inventory, "TinyHeroExpPotion", tinyPotionConsumed)) {
+        log.debug("not enough tiny potions");
+        return;
+    }
     if (!itemHasEnoughRemainingUsesLeft(inventory, "SmallHeroExpPotion", smallPotionConsumed)) {
         log.debug("not enough small potions");
         return;
     }
-    if (!itemHasEnoughRemainingUsesLeft(inventory, "MediumHeroExpPotion", mediumPotionConsumed)) {
-        log.debug("not enough medium potions");
+    if (!itemHasEnoughRemainingUsesLeft(inventory, "NormalHeroExpPotion", normalPotionConsumed)) {
+        log.debug("not enough normal potions");
         return;
     }
     if (!itemHasEnoughRemainingUsesLeft(inventory, "LargeHeroExpPotion", largePotionConsumed)) {
@@ -316,6 +326,13 @@ handlers.giveHeroExpPotion = function (args, context) {
         VirtualCurrency: "GO",
     });
     //consume potions from player inventory
+    if (tinyPotionConsumed > 0) {
+        server.ConsumeItem({
+            PlayFabId: currentPlayerId,
+            ItemInstanceId: inventory.Inventory.find(function (x) { return x.ItemId == "TinyHeroExpPotion"; }).ItemInstanceId,
+            ConsumeCount: tinyPotionConsumed,
+        });
+    }
     if (smallPotionConsumed > 0) {
         server.ConsumeItem({
             PlayFabId: currentPlayerId,
@@ -323,11 +340,11 @@ handlers.giveHeroExpPotion = function (args, context) {
             ConsumeCount: smallPotionConsumed,
         });
     }
-    if (mediumPotionConsumed > 0) {
+    if (normalPotionConsumed > 0) {
         server.ConsumeItem({
             PlayFabId: currentPlayerId,
-            ItemInstanceId: inventory.Inventory.find(function (x) { return x.ItemId == "MediumHeroExpPotion"; }).ItemInstanceId,
-            ConsumeCount: mediumPotionConsumed,
+            ItemInstanceId: inventory.Inventory.find(function (x) { return x.ItemId == "NormalHeroExpPotion"; }).ItemInstanceId,
+            ConsumeCount: normalPotionConsumed,
         });
     }
     if (largePotionConsumed > 0) {
@@ -352,45 +369,53 @@ function getHeroPotionGoldPrice() {
     var inventory = server.GetCatalogItems({
         CatalogVersion: "Items",
     });
+    var tinyAmount = 0;
     var smallAmount = 0;
-    var mediumAmount = 0;
+    var normalAmount = 0;
     var largeAmount = 0;
     inventory.Catalog.forEach(function (potion) {
         switch (potion.ItemId) {
+            case "TinyHeroExpPotion":
+                tinyAmount = (potion.VirtualCurrencyPrices["GO"]);
+                break;
             case "SmallHeroExpPotion":
                 smallAmount = (potion.VirtualCurrencyPrices["GO"]);
                 break;
-            case "MediumHeroExpPotion":
-                mediumAmount = (potion.VirtualCurrencyPrices["GO"]);
+            case "NormalHeroExpPotion":
+                normalAmount = (potion.VirtualCurrencyPrices["GO"]);
                 break;
             case "LargeHeroExpPotion":
                 largeAmount = (potion.VirtualCurrencyPrices["GO"]);
                 break;
         }
     });
-    return { small: smallAmount, medium: mediumAmount, large: largeAmount };
+    return { tiny: tinyAmount, small: smallAmount, normal: normalAmount, large: largeAmount };
 }
 function getHeroPotionExpAmount() {
     var inventory = server.GetCatalogItems({
         CatalogVersion: "Items",
     });
+    var tinyAmount = 0;
     var smallAmount = 0;
-    var mediumAmount = 0;
+    var normalAmount = 0;
     var largeAmount = 0;
     inventory.Catalog.forEach(function (potion) {
         switch (potion.ItemId) {
+            case "TinyHeroExpPotion":
+                tinyAmount = JSON.parse(potion.CustomData);
+                break;
             case "SmallHeroExpPotion":
                 smallAmount = JSON.parse(potion.CustomData);
                 break;
-            case "MediumHeroExpPotion":
-                mediumAmount = JSON.parse(potion.CustomData);
+            case "NormalHeroExpPotion":
+                normalAmount = JSON.parse(potion.CustomData);
                 break;
             case "LargeHeroExpPotion":
                 largeAmount = JSON.parse(potion.CustomData);
                 break;
         }
     });
-    return { small: smallAmount, medium: mediumAmount, large: largeAmount };
+    return { tiny: tinyAmount, small: smallAmount, normal: normalAmount, large: largeAmount };
 }
 /**
  * Grant the character exp according to the amount of potions
