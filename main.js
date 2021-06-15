@@ -830,7 +830,7 @@ function getRequiredRuneDust(level) {
         Keys: ["RuneLevelDust"],
     });
     var runeDataArray = JSON.parse(runeData.Data.RuneLevelDust);
-    var dustAmount = runeDataArray.find(function (x) { return Number(x.level) == (level); }).requiredDust;
+    var dustAmount = runeDataArray.find(function (x) { return Number(x.level + 1) == (level); }).requiredDust;
     return dustAmount;
 }
 function increaseMainStat(mainStat, itemClass) {
