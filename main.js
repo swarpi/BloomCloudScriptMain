@@ -907,7 +907,7 @@ handlers.giveRunesToHero = function (args, context) {
 handlers.lockRune = function (args, context) {
     server.UpdateUserInventoryItemCustomData({
         PlayFabId: currentPlayerId,
-        ItemInstanceId: args.runeId,
+        ItemInstanceId: args.rune,
         Data: {
             isLocked: args.isLocked,
         }
