@@ -904,6 +904,15 @@ handlers.giveRunesToHero = function (args, context) {
     });
     return { messageValue: "sucessfully given hero rune" };
 };
+handlers.lockRune = function (args, context) {
+    server.UpdateUserInventoryItemCustomData({
+        PlayFabId: currentPlayerId,
+        ItemInstanceId: args.runeId,
+        Data: {
+            isLocked: args.isLocked,
+        }
+    });
+};
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 // Welcome to your first Cloud Script revision!
