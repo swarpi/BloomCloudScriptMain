@@ -893,13 +893,27 @@ function getRuneSlotFromItemClass(itemClass) {
 }
 handlers.giveRunesToHero = function (args, context) {
     var hero = getHeroFromPlayerInventory(args.hero).hero;
+    var alpha;
+    var betaArray = new Array();
+    var gammaArray = new Array();
+    //need to read list with size of 6, in order to keep the runes in the right order and allow for dummy runes to fill the empty slots
+    //put alpha runes in the array
+    alpha = args.runeIds[0];
+    // put beta runes in the array
+    for (var i = 1; i < 3; i++) {
+        betaArray.push(args.runeIds[i]);
+    }
+    // put gamma runes in the array
+    for (var i = 3; i < 6; i++) {
+        gammaArray.push(args.runeIds[i]);
+    }
     server.UpdateUserInventoryItemCustomData({
         PlayFabId: currentPlayerId,
         ItemInstanceId: hero.ItemInstanceId,
         Data: {
-            alpha: args.alpha,
-            beta: args.beta.join(),
-            gamma: args.gamma.join(),
+            alpha: alpha,
+            beta: betaArray.join(),
+            gamma: gammaArray.join(),
         }
     });
     return { messageValue: "sucessfully given hero rune" };
