@@ -723,6 +723,13 @@ function getRuneEssenceAmount(mainRune, materialRune) {
         Keys: ["RuneLevelDust"],
     });
     var runeDataArray = JSON.parse(runeData.Data.RuneLevelDust);
+    var materialRuneLevel;
+    try {
+        materialRuneLevel = materialRune.runeLevel;
+    }
+    catch (error) {
+        materialRuneLevel = 1;
+    }
     var reductionAmount = runeDataArray.find(function (x) { return Number(x.level) == (materialRune.runeLevel); }).essenceReduction;
     var tempAmount = maxAmount - reductionAmount;
     if (tempAmount < 0) {
