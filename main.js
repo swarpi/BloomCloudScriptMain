@@ -663,23 +663,28 @@ handlers.combineRunes = function (args, context) {
     });
     if (args.mainRuneId == args.materialRuneId) {
         log.debug("ups you cant use the same rune");
-        return;
+        return { messageValue: ("ups you cant use the same rune") };
     }
     // get the runes from based on the item id
     var mainRune = allItems.Inventory.find(function (x) { return x.ItemInstanceId == args.mainRuneId; });
     var materialRune = allItems.Inventory.find(function (x) { return x.ItemInstanceId == args.materialRuneId; });
     if (mainRune.CustomData["stars"] != materialRune.CustomData["stars"]) {
         log.debug("ups not the same stars");
-        return;
+        return { messageValue: ("ups not the same stars") };
     }
     if (mainRune.ItemClass != materialRune.ItemClass) {
         log.debug("ups not the same grade");
-        return;
+        return { messageValue: ("ups not the same grade") };
     }
     // check if rune has reached max star level
     if (isRuneMaxStar(mainRune.CustomData["grade"], mainRune.CustomData["stars"])) {
         log.debug("ups rune is already max star");
-        return;
+        return { messageValue: ("ups rune is already max star") };
+    }
+    // check if player has enough rune essence
+    var essenceAmount = (getRuneEssenceAmount(mainRune, materialRune));
+    if (essenceAmount < 0 && allItems.VirtualCurrency["RE"] < essenceAmount) {
+        return { messageValue: ("ups not enough rune Essence") };
     }
     // delete the materialRune
     server.RevokeInventoryItem({
@@ -694,8 +699,39 @@ handlers.combineRunes = function (args, context) {
             stars: (Number(mainRune.CustomData["stars"]) + 1).toString(),
         },
     });
+    // decrease runeEssence Amount
+    log.debug(essenceAmount.toString());
+    server.SubtractUserVirtualCurrency({
+        Amount: essenceAmount,
+        PlayFabId: currentPlayerId,
+        VirtualCurrency: "RE",
+    });
     return { messageValue: ("rune star increased sucessfully ") };
 };
+function getRuneEssenceAmount(mainRune, materialRune) {
+    var essenceAmount = -1;
+    var combinationAmount = {
+        "0": 50,
+        "1": 150,
+        "2": 250,
+        "3": 350,
+        "4": 450,
+    };
+    var maxAmount = combinationAmount[mainRune.runeStars];
+    // get reduction from materialRunelevel
+    var runeData = server.GetTitleInternalData({
+        Keys: ["RuneLevelDust"],
+    });
+    var runeDataArray = JSON.parse(runeData.Data.RuneLevelDust);
+    var reductionAmount = runeDataArray.find(function (x) { return Number(x.level) == (materialRune.runeLevel); }).essenceReduction;
+    var tempAmount = maxAmount - reductionAmount;
+    if (tempAmount < 0) {
+        log.debug("ups something went wrong with reading rune essenses");
+        return -1;
+    }
+    essenceAmount = tempAmount;
+    return essenceAmount;
+}
 var runeSubstatIncreaseLevels = [5, 8, 11, 14];
 handlers.levelUpRuneOneLevel = function (args, context) {
     var allItems = server.GetUserInventory({
@@ -830,7 +866,7 @@ function getRequiredRuneDust(level) {
         Keys: ["RuneLevelDust"],
     });
     var runeDataArray = JSON.parse(runeData.Data.RuneLevelDust);
-    var dustAmount = runeDataArray.find(function (x) { return Number(x.level + 1) == (level); }).requiredDust;
+    var dustAmount = runeDataArray.find(function (x) { return Number(x.level) == (level + 1); }).requiredDust;
     return dustAmount;
 }
 function increaseMainStat(mainStat, itemClass) {
