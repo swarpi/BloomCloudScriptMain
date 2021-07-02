@@ -730,7 +730,7 @@ function getRuneEssenceAmount(mainRune, materialRune) {
     catch (error) {
         materialRuneLevel = 1;
     }
-    var reductionAmount = runeDataArray.find(function (x) { return Number(x.level) == (materialRune.runeLevel); }).essenceReduction;
+    var reductionAmount = runeDataArray.find(function (x) { return Number(x.level) == (materialRuneLevel); }).essenceReduction;
     var tempAmount = maxAmount - reductionAmount;
     if (tempAmount < 0) {
         log.debug("ups something went wrong with reading rune essenses");
