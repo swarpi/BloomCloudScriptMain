@@ -717,15 +717,15 @@ function getRuneEssenceAmount(mainRune, materialRune) {
         "3": 350,
         "4": 450,
     };
-    var maxAmount = combinationAmount[mainRune.runeStars];
+    var maxAmount = combinationAmount[mainRune.CustomData["stars"]];
     // get reduction from materialRunelevel
     var runeData = server.GetTitleInternalData({
         Keys: ["RuneLevelDust"],
     });
     var runeDataArray = JSON.parse(runeData.Data.RuneLevelDust);
     var materialRuneLevel;
-    if (materialRune.runeLevel != null)
-        materialRuneLevel = materialRune.runeLevel;
+    if (materialRune.CustomData["level"] != null)
+        materialRuneLevel = materialRune.CustomData["level"];
     else
         materialRuneLevel = 1;
     var reductionAmount = runeDataArray.find(function (x) { return Number(x.level) == (materialRuneLevel); }).essenceReduction;
